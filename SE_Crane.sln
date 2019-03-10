@@ -1,17 +1,180 @@
+using System;
 
-Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SE_Crane", "SE_Crane\SE_Crane.csproj", "{67B5B296-5532-4A15-BDDA-D9B5FBCFFBE3}"
-EndProject
-Global
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|x86 = Debug|x86
-		Release|x86 = Release|x86
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{67B5B296-5532-4A15-BDDA-D9B5FBCFFBE3}.Debug|x86.ActiveCfg = Debug|x86
-		{67B5B296-5532-4A15-BDDA-D9B5FBCFFBE3}.Debug|x86.Build.0 = Debug|x86
-		{67B5B296-5532-4A15-BDDA-D9B5FBCFFBE3}.Release|x86.ActiveCfg = Release|x86
-		{67B5B296-5532-4A15-BDDA-D9B5FBCFFBE3}.Release|x86.Build.0 = Release|x86
-	EndGlobalSection
-EndGlobal
+namespace SE_Crane
+{
+	class MainClass
+	{
+
+		//Copy from here
+
+		public class Behaviour
+		{
+
+		}
+
+		public class Action
+		//Action is a class used to perform a certain task every tick
+		//For example holding open a door for 10 seconds then closing it
+		//The function Do is run every tick, it returns true if task is done, false if task is still in progress
+		{
+
+
+			public Action()
+			{
+
+			}
+
+			public virtual bool Do()
+			{
+				return true;
+			}
+
+		}
+
+		//Extends the X and Y pistons of a crane as to match a given X,Y coordinate relative to the crane base.
+		//X and Y are in meters
+		public class SetXY : Action
+		{
+			float Xnew; //Destination x
+			float Ynew; //Destination y
+
+			float X; //Current x
+			float Y; //Current y
+
+			float V; //Piston speed
+			float dx; //How close the pistons need to be to the destination to stop
+
+			public SetXY(float Xnew, float Ynew, float V = 1.0F, float dx = 0.5F) :base()
+			{
+				this.Xnew = Xnew;
+				this.Ynew = Ynew;
+				this.V = V;
+				this.dx = dx;
+			}
+
+			//Finds the current extension of a single piston
+			public float FindPosition(IMyPistonBase Piston)
+			{
+				//Detailedinfo is a string containing the piston position
+				string Info = Piston.DetailedInfo.ToString();
+				string[] pistInfArr = Info.Split(':');
+
+				string[] pistonDist = (pistInfArr[1].Split('m'));
+
+				return float.Parse(pistonDist[0]);
+			}
+
+			//Finds the current X,Y coords of the pistons
+			public void FindXY(List<IMyPistonBase> XPistons, List<IMyPistonBase> YPistons)
+			{
+				float x = 0;
+				float y = 0;
+
+				foreach (IMyPistonBase Piston in XPistons)
+				{
+					x += FindPosition(Piston);
+				}
+
+				foreach (IMyPistonBase Piston in YPistons)
+				{
+					y += FindPosition(Piston);
+				}
+
+				this.X = x;
+				this.Y = y;
+			}
+
+			//Sets the velocity of a list of pistons
+			public void SetVelocity(List<IMyPistonBase> Pistons, float V)
+			{
+				foreach (IMyPistonBase Piston in Pistons)
+				{
+					Piston.Velocity = V;
+				}
+			}
+
+			//Finds all pistons with a given name in a list of pistons
+			public List<IMyPistonBase> SelectName(List<IMyPistonBase> Pistons,string Name)
+			{
+
+				List<IMyPistonBase> NewPistons = new List<IMyPistonBase>();
+				foreach (IMyPistonBase Piston in Pistons)
+				{
+					if (Piston.CustomName.Contains(Name))
+					{
+						NewPistons.Add(Piston);
+					}
+				}
+
+				return NewPistons;
+
+			}
+
+
+			//Changes the velocity as to move the pistons to the right coords
+			//When X,Y is close enough to Xnew,Ynew then stop
+			override public bool Do()
+			{
+
+				List<IMyPistonBase> XPistons = new List<IMyPistonBase>();
+				List<IMyPistonBase> YPistons = new List<IMyPistonBase>();
+
+				program.GridTerminalSystem.GetBlocksOfType<IMyPistonBase>(XPistons);
+				program.GridTerminalSystem.GetBlocksOfType<IMyPistonBase>(YPistons);
+				XPistons = SelectName(XPistons, "XPiston");
+				YPistons = SelectName(YPistons, "YPiston");
+
+				FindXY(XPistons, YPistons);
+				bool req1 = Math.Abs(this.Xnew - this.X) <= dx;
+				bool req2 = Math.Abs(this.Ynew - this.Y) <= dx;
+				if (!req1)
+				{
+					if (this.Xnew > this.X)
+					{
+						SetVelocity(XPistons, this.V);
+					}
+					else
+					{
+						SetVelocity(XPistons, -this.V);
+					}
+				}
+
+				if (!req2)
+				{
+					if (this.Ynew > this.Y)
+					{
+						SetVelocity(YPistons, this.V);
+					}
+					else
+					{
+						SetVelocity(YPistons, -this.V);
+					}
+				}
+
+				if (req1 && req2)
+				{
+                    SetVelocity(XPistons, 0);
+                    SetVelocity(YPistons, 0);
+				}
+				return req1 && req2;
+
+			}
+
+		}
+
+
+		//Global Variables
+		static Program program;
+
+
+		public static void Main(string[] args)
+		{
+			program = this;
+			SetXY action = new SetXY(3F, 4F);
+			bool succes = action.Do()
+				
+
+
+		}
+	}
+}
